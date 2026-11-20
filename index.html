@@ -37,10 +37,9 @@ table{border-collapse:collapse;width:100%;font-size:.9rem}th,td{padding:6px;bord
 <dialog id="how"><h2>How to play</h2><ol style="text-align:left"><li>Pick your level.</li><li>Press <b>PLAY WORD</b> to hear the word.</li><li>Press <b>MICROPHONE</b> and read the word aloud.</li><li>See your result, then press <b>NEXT WORD</b>.</li><li>Finish 10 words to earn stars!</li></ol><p>Missed a word? That's okay – practice helps you grow. If the microphone doesn't work, ask your teacher to listen.</p><button onclick="$('#how').close()">Got it!</button></dialog>
 
 <!-- LOGIN -->
-<section id="s-login" class="scr" hidden><div class="card"><div class="row"><div class="exh"></div><div class="bubble">Welcome! Type the class code from your teacher.</div></div>
- <label>Class code</label><input id="code" maxlength="8" autocapitalize="characters" placeholder="e.g. K7M2QX"><button onclick="findClass()">FIND MY CLASS</button>
- <div id="step2" hidden><label>Your name</label><select id="pn"></select><label>Your PIN</label><input id="pin" type="password" inputmode="numeric" maxlength="4" placeholder="4-digit PIN">
- <button class="go" onclick="doLogin()">CONTINUE</button></div><div class="msg" id="lmsg"></div>
+<section id="s-login" class="scr" hidden><div class="card"><div class="row"><div class="exh"></div><div class="bubble">Tell me about you, explorer! Then we can start.</div></div>
+ <label>Complete name</label><input id="f-name" autocomplete="off"><label>Grade level</label><input id="f-grade" value="Grade 5"><label>Section</label><input id="f-sec"><label>School name</label><input id="f-sch"><label>Teacher's name</label><input id="f-tch">
+ <button class="go" onclick="doLogin()">CONTINUE</button><div class="msg" id="lmsg"></div>
  <small>🔒 Only your teacher can see your results. No voice recordings are saved.</small><br><button class="sm ghost" onclick="go('welcome')">⬅ Back</button></div></section>
 
 <!-- DASHBOARD -->
@@ -69,7 +68,7 @@ table{border-collapse:collapse;width:100%;font-size:.9rem}th,td{padding:6px;bord
 <section id="s-teach" class="scr" hidden>
  <div class="card"><h2>👩‍🏫 Teacher Dashboard</h2>
  <div id="tin"><p>Sign in with your Google account (must be on the teacher allow-list).</p><div id="g"></div><div class="msg" id="tmsg"></div></div>
- <div id="tdash" hidden><div class="tabs"><button id="t-class" onclick="tTab('class')">Class</button><button id="t-pupil" onclick="tTab('pupil')">Pupil</button><button id="t-roster" onclick="tTab('roster')">Roster</button><button id="t-words" onclick="tTab('words')">Words</button></div><div id="tbody"></div></div>
+ <div id="tdash" hidden><div class="tabs"><button id="t-class" onclick="tTab('class')">Class</button><button id="t-pupil" onclick="tTab('pupil')">Pupil</button><button id="t-words" onclick="tTab('words')">Words</button></div><div id="tbody"></div></div>
  <button class="sm ghost" onclick="location.reload()">⬅ Exit</button></div></section>
 
 </main>
@@ -90,10 +89,9 @@ async function api(a,d={}){const r=await fetch(API,{method:'POST',headers:{'Cont
 function toast(m){const f=$('#fb');if(f&&!$('#s-play').hidden){f.className='tech';f.textContent=m}else alert(m)}
 
 /* ---------- PUPIL LOGIN ---------- */
-async function findClass(){try{H('#lmsg','');const j=await api('names',{code:$('#code').value});H('#pn',j.names.map(n=>`<option value="${esc(n.id)}">${esc(n.name)}</option>`).join(''));$('#step2').hidden=false}catch(e){H('#lmsg',esc(e.message))}}
-async function doLogin(){try{H('#lmsg','Checking…');const j=await api('login',{id:$('#pn').value,pin:$('#pin').value});S.token=j.token;S.me=j.me;S.words=(await api('allWords',{token:S.token})).words;await loadProg();H('#lmsg','');showDash()}catch(e){H('#lmsg',esc(e.message))}}
+async function doLogin(){try{H('#lmsg','Please wait…');const j=await api('join',{name:$('#f-name').value,grade:$('#f-grade').value,section:$('#f-sec').value,school:$('#f-sch').value,teacher:$('#f-tch').value});S.token=j.token;S.me=j.me;S.words=(await api('allWords',{token:S.token})).words;await loadProg();H('#lmsg','');showDash()}catch(e){H('#lmsg',esc(e.message))}}
 async function loadProg(){S.prog=(await api('progress',{token:S.token})).prog}
-function logout(){S={};$('#pin').value='';$('#step2').hidden=true;go('welcome')}
+function logout(){S={};go('welcome')}
 
 /* ---------- DASHBOARD ---------- */
 function lstat(l){const w=S.words[l]||[],bs={};S.prog.batches.filter(b=>b.Level===l).forEach(b=>bs[b.Batch]=Math.max(bs[b.Batch]||0,b.Stars));return{tot:Math.floor(w.length/10),bs,done:Object.keys(bs).length,stars:Object.values(bs).reduce((a,b)=>a+b,0)}}
@@ -168,7 +166,7 @@ function teacherEntry(){go('teach');if(T.idt)return;const init=()=>{google.accou
  if(window.google&&google.accounts)init();else{const s=document.createElement('script');s.src='https://accounts.google.com/gsi/client';s.onload=init;s.onerror=()=>H('#tmsg','Could not load Google sign-in (check internet).');document.head.appendChild(s)}}
 async function tapi(a,d={}){try{return await api(a,{idt:T.idt,...d})}catch(e){if(/Sign-in/.test(e.message)){T.idt=null;$('#tin').hidden=false;$('#tdash').hidden=true;H('#tmsg',esc(e.message));teacherEntry()}throw e}}
 async function tLoad(){try{T.p=(await tapi('tOverview')).pupils;$('#tin').hidden=true;$('#tdash').hidden=false;tTab('class')}catch(e){H('#tmsg',esc(e.message))}}
-function tTab(t){['class','pupil','roster','words'].forEach(x=>$('#t-'+x).className=x===t?'on':'');({class:tClass,pupil:()=>tPupil(T.cur),roster:tRoster,words:tWords})[t]()}
+function tTab(t){['class','pupil','words'].forEach(x=>$('#t-'+x).className=x===t?'on':'');({class:tClass,pupil:()=>tPupil(T.cur),roster:tRoster,words:tWords})[t]()}
 const flag=p=>p.assessed===0?'Not started':(p.assessed>=10&&p.acc<70)?'⚠ May need intervention':'On track';
 function tClass(){const P=[...T.p].sort((a,b)=>(flag(b)[0]==='⚠')-(flag(a)[0]==='⚠')),v=P.filter(p=>p.acc!==null),avg=v.length?Math.round(v.reduce((a,p)=>a+p.acc,0)/v.length):'–';
  H('#tbody',`<p><b>${P.length}</b> pupils · class average accuracy <b>${avg}%</b> · <b>${P.filter(p=>flag(p)[0]==='⚠').length}</b> may need intervention <small>(accuracy of all valid attempts; flag = under 70% after 10+ attempts)</small></p>
